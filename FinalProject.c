@@ -181,7 +181,6 @@ void getOrderDetails(int index, int itemNumber) {
 }
 
 void addOrder() {
-    printf("TEST");
     int itemNumber;
     char anotherOrder[2]; 
     char input[3];  
