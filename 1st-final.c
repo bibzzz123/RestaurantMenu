@@ -82,6 +82,7 @@ void processCheckout();
 void printReceipt(double subtotal, double takeoutFees, double discount, double total, int paymentMethod);
 int getDiscountCard();
 int getPaymentMethod();
+void clearAllOrders();
 
 void clearScreen() {
     #ifdef _WIN32
@@ -158,18 +159,18 @@ void getOrderDetails(int index, int itemNumber) {
         case 8: // Chixsilog
             printf("Extra Rice? Add Php 15.00 (Y for Yes, N for No): ");
             scanf("%s", extraOrders[index]);
-            strcpy(types[index], "R");
+            strcpy(types[index], extraOrders[index]);
             break;
 
         case 9: // Extra Rice
         case 10: // Extra Toppings
-            strcpy(types[index], "R");
+            strcpy(types[index], "");
             break;
 
         case 11: // Softdrinks
             printf("Regular or Large? (R for Regular, L for Large): ");
             scanf("%s", extraOrders[index]);
-            strcpy(types[index], "R");
+            strcpy(types[index], extraOrders[index]);
             break;
 
         default:
@@ -177,6 +178,22 @@ void getOrderDetails(int index, int itemNumber) {
             break;
     }
 }
+
+void clearAllOrders() {
+    orderCount = 0;  // Reset order count
+    // Clear all arrays
+    for(int i = 0; i < MAX_ORDERS; i++) {
+        orders[i] = 0;
+        quantities[i] = 0;
+        strcpy(types[i], "");
+        strcpy(extraOrders[i], "");
+        strcpy(dineOptions[i], "");
+    }
+    strcpy(phoneNumber, "");
+    strcpy(cardType, "");
+}
+
+
 void addOrder() {
     int itemNumber;
     char anotherOrder[2]; 
@@ -194,21 +211,12 @@ void addOrder() {
             if (strcmp(input, "S") == 0 || strcmp(input, "s") == 0) {
                 clearScreen();
                 showOrders();
-                printf("\nPress Enter to go back...");
-                getchar();
-                getchar();
-                clearScreen();
-                addOrder();
                 return;
-            } else if (strcmp(input, "R") == 0 || strcmp(input, "r") == 0) {
+            } 
+
+            else if (strcmp(input, "R") == 0 || strcmp(input, "r") == 0) {
                 clearScreen();
                 removeOrder();
-                printf("\nPress Enter to continue...");
-                getchar();
-                getchar();
-                clearScreen();
-                addOrder();
-                return;
             }
 
             itemNumber = atoi(input);
@@ -228,45 +236,84 @@ void addOrder() {
         orderCount++;
 
         clearScreen();
-        do {
-            showOrders();
-            printf("\nPress Y to order again or Press N to checkout? (Y or N): ");
-            scanf("%s", anotherOrder);
-
-            if (strcmp(anotherOrder, "Y") == 0 || strcmp(anotherOrder, "y") == 0) {
-                break;
-            } 
-            else if (strcmp(anotherOrder, "N") == 0 || strcmp(anotherOrder, "n") == 0) {
-                showOrders();
-                break;
-            } else {
-                printf("Invalid input! Please enter 'Y' or 'N'.\n");
-            }
-        } while (1);
-
-        clearScreen();
+        showOrders();
         
     } while (strcmp(anotherOrder, "Y") == 0 || strcmp(anotherOrder, "y") == 0);
 }
 
 void removeOrder() {
-    int orderNumber;
-    
     if (orderCount == 0) {
-        printf("\nNo orders to remove!\n");
+        printf("\nNothing to remove, no orders yet!\n");
+        printf("\nPress Enter to continue...");
+        getchar();
+        getchar();
+        clearScreen();
+        addOrder(); // Return to addOrder instead of just returning
         return;
     }
     
-    showOrders();
+    printf("\n----------- Current Orders -----------\n");
+    printf("%-3s %-20s %-10s %-10s %-10s %-10s\n", "No.", "Item", "Quantity", "Type", "Dine In/Take Out", "Price");
+    printf("-------------------------------------------------------------------------\n");
     
-    printf("\nEnter the order number to remove: ");
+    double total = 0.0;
+    for (int i = 0; i < orderCount; i++) {
+        char upperType = toupper(types[i][0]);
+        double itemPrice;
+        
+        // Special handling for softdrinks
+        if (orders[i] == 11) { // Softdrink index
+            itemPrice = (toupper(extraOrders[i][0]) == 'L') ? specialPrices[orders[i]] : regularPrices[orders[i]];
+        } else {
+            itemPrice = (upperType == 'S') ? specialPrices[orders[i]] : regularPrices[orders[i]];
+        }
+        
+        double lineTotal = itemPrice * quantities[i];
+        
+        // Add extra charge based on item type
+        if (toupper(extraOrders[i][0]) == 'Y') {
+            if (orders[i] >= 5 && orders[i] <= 8) {
+                lineTotal += regularPrices[9] * quantities[i];
+            } else if (orders[i] <= 4) {
+                lineTotal += regularPrices[10] * quantities[i];
+            }
+        }
+
+        // Add takeout fee if applicable
+        if (strcmp(dineOptions[i], "T") == 0) {
+            lineTotal += TAKEOUT_FEE * quantities[i];
+        }
+
+        printf("%-3d %-20s %-10d %-10s %-10s Php %.2f\n", 
+            i + 1, menuItems[orders[i]], quantities[i], types[i], dineOptions[i], lineTotal);
+        
+        total += lineTotal;
+    }
+    
+    printf("-------------------------------------------------------------------------\n");
+    printf("Total: Php %.2f\n", total);
+    
+    int orderNumber;
+    printf("\nEnter the order number to remove (0 to cancel): ");
     scanf("%d", &orderNumber);
+    
+    if (orderNumber == 0) {
+        clearScreen();
+        addOrder(); // Return to addOrder instead of just returning
+        return;
+    }
     
     if (orderNumber < 1 || orderNumber > orderCount) {
         printf("Invalid order number!\n");
+        printf("\nPress Enter to continue...");
+        getchar();
+        getchar();
+        clearScreen();
+        addOrder(); // Return to addOrder instead of just returning
         return;
     }
 
+    // Shift remaining orders
     for (int i = orderNumber - 1; i < orderCount - 1; i++) {
         orders[i] = orders[i + 1];
         quantities[i] = quantities[i + 1];
@@ -276,12 +323,28 @@ void removeOrder() {
     }
 
     orderCount--;
-    printf("Order number %d removed successfully!\n", orderNumber);
+    
+    printf("\nOrder number %d removed successfully!\n", orderNumber);
+    
+    // If all orders are removed
+    if (orderCount == 0) {
+        printf("All orders have been removed.\n");
+    }
+    
+    printf("\nPress Enter to continue...");
+    getchar();
+    getchar();
+    clearScreen();
+    addOrder(); // Return to addOrder after successful removal
 }
-
 void showOrders() {
     if (orderCount == 0) {
-        printf("No orders placed yet.\n");
+        printf("\nNothing to show no orders yet!\n");
+        printf("\nPress Enter to continue...");
+        getchar();
+        getchar();
+        clearScreen();
+        addOrder();
         return;
     }
 
@@ -330,9 +393,48 @@ void showOrders() {
         
         total += lineTotal;
     }
+
     printf("-------------------------------------------------------------------------\n");
     printf("Total: Php %.2f\n", total);
+    char choice[5];
+    printf("Press C to checkout or Press B to go back: ");
+    scanf(" %s", choice);  
+
+    if (toupper(choice[0]) == 'C') {  
+        clearScreen();
+        processCheckout();
+        
+        char continueChoice[2];
+        printf("\nDo you want to place another order? (Y/N): ");
+        scanf(" %s", continueChoice);
+        
+        if(toupper(continueChoice[0]) == 'Y') {
+            clearAllOrders(); 
+            clearScreen();
+            addOrder(); 
+        }
+        else {
+            printf("\nThank you for ordering! Please come again!\n");
+            exit(0);  // Terminate program
+        }
+    }
+
+
+    else if (toupper(choice[0]) == 'B') {
+        clearScreen();
+        addOrder();
+    }
+
+    else {
+        printf("Invalid choice! Press C to checkout or B to go back.\n");
+        printf("\nPress Enter to continue...");
+        getchar();
+        getchar();
+        clearScreen();
+        showOrders();
+    }
 }
+
 void processCheckout() {
     double subtotal = 0.0;
     double takeoutFees = 0.0;
@@ -373,6 +475,7 @@ void processCheckout() {
     
     printReceipt(subtotal, takeoutFees, discount, subtotal + takeoutFees - discount, paymentMethod);
 }
+
 void printReceipt(double subtotal, double takeoutFees, double discount, double total, int paymentMethod) {
     clearScreen();
     printf("\n========================== RECEIPT =============================\n");
@@ -448,6 +551,7 @@ void printReceipt(double subtotal, double takeoutFees, double discount, double t
     printf("        Please come again. God Bless!\n");
     printf("=============================================\n");
 }
+
 int getDiscountCard() {
     char input[3];
     printf("Do you have a discount card? (Y for Yes, N for No): ");
@@ -507,18 +611,8 @@ int getPaymentMethod() {
 }
 
 int main() {
-    char continueOrdering;
-
-    printf("Welcome to the ABC123 Lomian atbp!\n");
-
-    do {
-        clearScreen();
-        addOrder();
-        processCheckout();
-        printf("\nDo you want to place another order? (Y for Yes, N for No): ");
-        scanf(" %c", &continueOrdering);
-    } while (continueOrdering == 'Y' || continueOrdering == 'y');
-
-    printf("Thank you for ordering!\n");
+    clearScreen();
+    addOrder(); 
+    printf("\nThank you for ordering!\n");
     return 0;
 }
