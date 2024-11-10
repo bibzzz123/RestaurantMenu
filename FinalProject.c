@@ -197,22 +197,22 @@ void addOrder() {
             if (strcmp(input, "S") == 0 || strcmp(input, "s") == 0) {
                 clearScreen();
                 showOrders();
-                printf("\nPress Enter to continue...");
+                printf("\nPress Enter to continue...");     
                 getchar();
                 getchar();
                 clearScreen();
-                
+                // clear data
                 addOrder();
             } 
-            
+                    
             else if (strcmp(input, "R") == 0 || strcmp(input, "r") == 0) {
                 clearScreen();
                 removeOrder();
                 printf("\nPress Enter to continue...");
-                getchar();  // Wait for user to press Enter
-                getchar();  // Clear the buffer for any stray newline
+                getchar();  
+                getchar(); 
                 clearScreen();
-                continue;  
+                addOrder();
             }
 
             itemNumber = atoi(input);
@@ -262,7 +262,7 @@ void removeOrder() {
         return;
     }
     
-    showOrders();
+    showcurrentOrder();
     
     printf("\nEnter the order number to remove: ");
     scanf("%d", &orderNumber);
