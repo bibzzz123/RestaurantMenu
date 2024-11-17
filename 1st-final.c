@@ -112,76 +112,117 @@ void displayMenu() {
 }
 
 void getOrderDetails(int index, int itemNumber) {
+    if (index < 0 || index >= MAX_ORDERS) {
+        printf("Error: Invalid order index!\n");
+        return;
+    }
+
+    if (itemNumber < 1 || itemNumber > MAX_ITEMS) {
+        printf("Error: Invalid item number!\n");
+        return;
+    }
+
     int itemIndex = itemNumber - 1;
     char dineOption;
+    char input[10];  
     
-    do {
+    // Dine option validation
+    while (1) {
         printf("Dine In or Take Out? (D for Dine In, T for Take Out): ");
-        scanf(" %c", &dineOption);
-        dineOption = toupper(dineOption);
-        
-        if (dineOption != 'D' && dineOption != 'T') {
-            printf("Invalid option. Please enter D or T.\n");
+        if (scanf(" %c", &dineOption) != 1) {
+            printf("Error: Invalid input!\n");
+            while (getchar() != '\n');  
+            continue;
         }
-    } while (dineOption != 'D' && dineOption != 'T');
+        
+        dineOption = toupper(dineOption);
+        if (dineOption == 'D' || dineOption == 'T') {
+            break;
+        }
+        printf("Error: Please enter D or T only!\n");
+    }
     
     dineOptions[index][0] = dineOption;
     dineOptions[index][1] = '\0';
     
-    do {
+    // Quantity validation
+    while (1) {
         printf("Quantity: ");
-        scanf("%d", &quantities[index]);
-        if (quantities[index] <= 0) {
-            printf("Invalid quantity! Please enter a positive number.\n");
+        if (scanf("%d", &quantities[index]) != 1) {
+            printf("Error: Please enter a valid number!\n");
+            while (getchar() != '\n');
+            continue;
         }
-    } while (quantities[index] <= 0);
-
-    strcpy(extraOrders[index], "N");
-
-    switch(itemIndex) {
-        case 0: // Lomi
-        case 1: // Chami
-        case 2: // Pancit Canton
-        case 3: // Pancit Bihon
-        case 4: // Pancit Tustado
-            printf("Special or Regular? (S for Special, R for Regular): ");
-            scanf("%s", types[index]);
-
-            printf("Extra Toppings? (Y for Yes, N for No): ");
-            char extraTopping[3];
-            scanf("%s", extraTopping);
-            strcpy(extraOrders[index], extraTopping);
-            break;
-
-        case 5: // Tapsilog
-        case 6: // Hotsilog
-        case 7: // Tocilog
-        case 8: // Chixsilog
-            printf("Extra Rice? Add Php 15.00 (Y for Yes, N for No): ");
-            scanf("%s", extraOrders[index]);
-            strcpy(types[index], extraOrders[index]);
-            break;
-
-        case 9: // Extra Rice
-        case 10: // Extra Toppings
-            strcpy(types[index], "");
-            break;
-
-        case 11: // Softdrinks
-            printf("Regular or Large? (R for Regular, L for Large): ");
-            scanf("%s", extraOrders[index]);
-            strcpy(types[index], extraOrders[index]);
-            break;
-
-        default:
-            printf("Invalid item selection.\n");
-            break;
+        
+        if (quantities[index] <= 0) {
+            printf("Error: Quantity must be greater than 0!\n");
+            continue;
+        }
+        
+        if (quantities[index] > 100) {  
+            printf("Error: Maximum quantity limit is 100!\n");
+            continue;
+        }
+        break;
     }
+
+    // Initialize with default values
+    strcpy(extraOrders[index], "N");
+    strcpy(types[index], "R");  // Default to Regular
+
+    // Item-specific options
+    if (itemIndex >= 0 && itemIndex <= 4) {  // Noodle dishes
+        while (1) {
+            printf("Special or Regular? (S for Special, R for Regular): ");
+            scanf(" %s", input);
+            if (strlen(input) == 1 && (toupper(input[0]) == 'S' || toupper(input[0]) == 'R')) {
+                strcpy(types[index], input);
+                break;
+            }
+            printf("Error: Please enter S or R only!\n");
+        }
+        
+        while (1) {
+            printf("Extra Toppings? (Y for Yes, N for No): ");
+            scanf(" %s", input);
+            if (strlen(input) == 1 && (toupper(input[0]) == 'Y' || toupper(input[0]) == 'N')) {
+                strcpy(extraOrders[index], input);
+                break;
+            }
+            printf("Error: Please enter Y or N only!\n");
+        }
+    }
+    else if (itemIndex >= 5 && itemIndex <= 8) {  // Silog meals
+        while (1) {
+            printf("Extra Rice? Add Php 15.00 (Y for Yes, N for No): ");
+            scanf(" %s", input);
+            if (strlen(input) == 1 && (toupper(input[0]) == 'Y' || toupper(input[0]) == 'N')) {
+                strcpy(extraOrders[index], input);
+                strcpy(types[index], input);
+                break;
+            }
+            printf("Error: Please enter Y or N only!\n");
+        }
+    }
+    else if (itemIndex == 11) {  // Softdrinks
+        while (1) {
+            printf("Regular or Large? (R for Regular, L for Large): ");
+            scanf(" %s", input);
+            if (strlen(input) == 1 && (toupper(input[0]) == 'R' || toupper(input[0]) == 'L')) {
+                strcpy(extraOrders[index], input);
+                strcpy(types[index], input);
+                break;
+            }
+            printf("Error: Please enter R or L only!\n");
+        }
+    }
+
+    while (getchar() != '\n'); 
 }
 
 void clearAllOrders() {
-    orderCount = 0;  // Reset order count
-    // Clear all arrays
+    orderCount = 0;  
+    
     for(int i = 0; i < MAX_ORDERS; i++) {
         orders[i] = 0;
         quantities[i] = 0;
@@ -195,122 +236,92 @@ void clearAllOrders() {
 
 
 void addOrder() {
-    int itemNumber;
-    char anotherOrder[2]; 
-    char input[3];  
+    if (orderCount >= MAX_ORDERS) {
+        printf("Error: Maximum order limit (%d) reached!\n", MAX_ORDERS);
+        printf("Press Enter to continue...");
+        getchar();
+        return;
+    }
 
-    do {
+    char input[10];
+    int itemNumber;
+
+    while (1) {
         displayMenu();
         
-        itemNumber = -1;
+        printf("\nEnter the item number to order (S to show orders, R to remove an order): ");
+        if (scanf("%s", input) != 1) {
+            printf("Error: Invalid input!\n");
+            while (getchar() != '\n');
+            continue;
+        }
 
-        while (itemNumber < 1 || itemNumber > MAX_ITEMS) {
-            printf("\nEnter the item number to order (S to show orders, R to remove an order): ");
-            scanf("%s", input);
-
-            if (strcmp(input, "S") == 0 || strcmp(input, "s") == 0) {
+    
+        if (strlen(input) == 1) {
+            if (toupper(input[0]) == 'S') {
                 clearScreen();
                 showOrders();
                 return;
-            } 
-
-            else if (strcmp(input, "R") == 0 || strcmp(input, "r") == 0) {
+            }
+            else if (toupper(input[0]) == 'R') {
                 clearScreen();
                 removeOrder();
-            }
-
-            itemNumber = atoi(input);
-
-            if (itemNumber < 1 || itemNumber > MAX_ITEMS) {
-                printf("Invalid item number. Please enter a number between 1 and %d.\n", MAX_ITEMS);
+                return;
             }
         }
 
-        if (orderCount >= MAX_ORDERS) {
-            printf("Order limit reached! You can only place up to %d orders.\n", MAX_ORDERS);
-            break;
+        // Convert input to number
+        itemNumber = atoi(input);
+        if (itemNumber < 1 || itemNumber > MAX_ITEMS) {
+            printf("Error: Please enter a number between 1 and %d, or S/R!\n", MAX_ITEMS);
+            continue;
         }
 
-        orders[orderCount] = itemNumber - 1;  
-        getOrderDetails(orderCount, itemNumber); 
-        orderCount++;
+        break;
+    }
 
-        clearScreen();
-        showOrders();
-        
-    } while (strcmp(anotherOrder, "Y") == 0 || strcmp(anotherOrder, "y") == 0);
+    orders[orderCount] = itemNumber - 1;
+    getOrderDetails(orderCount, itemNumber);
+    orderCount++;
+
+    clearScreen();
+    showOrders();
 }
 
 void removeOrder() {
     if (orderCount == 0) {
-        printf("\nNothing to remove, no orders yet!\n");
+        printf("\nError: No orders to remove!\n");
         printf("\nPress Enter to continue...");
         getchar();
         getchar();
         clearScreen();
-        addOrder(); // Return to addOrder instead of just returning
+        addOrder();
         return;
     }
-    
-    printf("\n----------- Current Orders -----------\n");
-    printf("%-3s %-20s %-10s %-10s %-10s %-10s\n", "No.", "Item", "Quantity", "Type", "Dine In/Take Out", "Price");
-    printf("-------------------------------------------------------------------------\n");
-    
-    double total = 0.0;
-    for (int i = 0; i < orderCount; i++) {
-        char upperType = toupper(types[i][0]);
-        double itemPrice;
-        
-        // Special handling for softdrinks
-        if (orders[i] == 11) { // Softdrink index
-            itemPrice = (toupper(extraOrders[i][0]) == 'L') ? specialPrices[orders[i]] : regularPrices[orders[i]];
-        } else {
-            itemPrice = (upperType == 'S') ? specialPrices[orders[i]] : regularPrices[orders[i]];
-        }
-        
-        double lineTotal = itemPrice * quantities[i];
-        
-        // Add extra charge based on item type
-        if (toupper(extraOrders[i][0]) == 'Y') {
-            if (orders[i] >= 5 && orders[i] <= 8) {
-                lineTotal += regularPrices[9] * quantities[i];
-            } else if (orders[i] <= 4) {
-                lineTotal += regularPrices[10] * quantities[i];
-            }
-        }
 
-        // Add takeout fee if applicable
-        if (strcmp(dineOptions[i], "T") == 0) {
-            lineTotal += TAKEOUT_FEE * quantities[i];
-        }
+    showOrders();  
 
-        printf("%-3d %-20s %-10d %-10s %-10s Php %.2f\n", 
-            i + 1, menuItems[orders[i]], quantities[i], types[i], dineOptions[i], lineTotal);
-        
-        total += lineTotal;
-    }
-    
-    printf("-------------------------------------------------------------------------\n");
-    printf("Total: Php %.2f\n", total);
-    
     int orderNumber;
-    printf("\nEnter the order number to remove (0 to cancel): ");
-    scanf("%d", &orderNumber);
-    
-    if (orderNumber == 0) {
-        clearScreen();
-        addOrder(); // Return to addOrder instead of just returning
-        return;
-    }
-    
-    if (orderNumber < 1 || orderNumber > orderCount) {
-        printf("Invalid order number!\n");
-        printf("\nPress Enter to continue...");
-        getchar();
-        getchar();
-        clearScreen();
-        addOrder(); // Return to addOrder instead of just returning
-        return;
+    while (1) {
+        printf("\nEnter the order number to remove (0 to cancel): ");
+        if (scanf("%d", &orderNumber) != 1) {
+            printf("Error: Please enter a valid number!\n");
+            while (getchar() != '\n');
+            continue;
+        }
+
+        if (orderNumber == 0) {
+            clearScreen();
+            addOrder();
+            return;
+        }
+
+        if (orderNumber < 1 || orderNumber > orderCount) {
+            printf("Error: Please enter a number between 1 and %d!\n", orderCount);
+            continue;
+        }
+
+        break;
     }
 
     // Shift remaining orders
@@ -323,19 +334,13 @@ void removeOrder() {
     }
 
     orderCount--;
-    
     printf("\nOrder number %d removed successfully!\n", orderNumber);
-    
-    // If all orders are removed
-    if (orderCount == 0) {
-        printf("All orders have been removed.\n");
-    }
     
     printf("\nPress Enter to continue...");
     getchar();
     getchar();
     clearScreen();
-    addOrder(); // Return to addOrder after successful removal
+    addOrder();
 }
 void showOrders() {
     if (orderCount == 0) {
@@ -358,7 +363,7 @@ void showOrders() {
         double itemPrice;
         
         // Special handling for softdrinks
-        if (orders[i] == 11) { // Softdrink index
+        if (orders[i] == 11) { 
             itemPrice = (toupper(extraOrders[i][0]) == 'L') ? specialPrices[orders[i]] : regularPrices[orders[i]];
         } else {
             itemPrice = (upperType == 'S') ? specialPrices[orders[i]] : regularPrices[orders[i]];
@@ -415,7 +420,7 @@ void showOrders() {
         }
         else {
             printf("\nThank you for ordering! Please come again!\n");
-            exit(0);  // Terminate program
+            exit(0);  
         }
     }
 
@@ -446,7 +451,7 @@ void processCheckout() {
         double itemPrice;
         
         // Special handling for softdrinks
-        if (itemIndex == 11) { // Softdrink index
+        if (itemIndex == 11) { 
             itemPrice = (toupper(extraOrders[i][0]) == 'L') ? specialPrices[itemIndex] : regularPrices[itemIndex];
         } else {
             itemPrice = (upperType == 'S') ? specialPrices[itemIndex] : regularPrices[itemIndex];
@@ -561,55 +566,75 @@ int getDiscountCard() {
 
 int getPaymentMethod() {
     int choice;
+    char input[20];
     
     printf("\nSelect Payment Method:\n");
     for (int i = 0; i < MAX_PAYMENT_METHODS; i++) {
         printf("%d. %s\n", i + 1, paymentMethods[i]);
     }
 
-    do {
+    while (1) {
         printf("Enter your choice (1-%d): ", MAX_PAYMENT_METHODS);
-        scanf("%d", &choice);
-        if (choice < 1 || choice > MAX_PAYMENT_METHODS) {
-            printf("Invalid choice! Please enter a number between 1 and %d.\n", MAX_PAYMENT_METHODS);
+        if (scanf("%d", &choice) != 1) {
+            printf("Error: Please enter a valid number!\n");
+            while (getchar() != '\n');
+            continue;
         }
-    } while (choice < 1 || choice > MAX_PAYMENT_METHODS);
 
-    // Clear input buffer
-    while (getchar() != '\n');
+        if (choice < 1 || choice > MAX_PAYMENT_METHODS) {
+            printf("Error: Please enter a number between 1 and %d!\n", MAX_PAYMENT_METHODS);
+            continue;
+        }
+        break;
+    }
+
+    while (getchar() != '\n');  
 
     // Handle E-money payment
-    if (choice == 2) {  // E-money option
-        do {
+    if (choice == 2) {
+        while (1) {
             printf("Enter 11-digit Gcash/Maya number: ");
-            scanf("%s", phoneNumber);
-            if (strlen(phoneNumber) != 11 || strspn(phoneNumber, "0123456789") != 11) {
-                printf("Invalid phone number! Please enter exactly 11 digits.\n");
-                phoneNumber[0] = '\0';  // Clear the invalid input
+            if (scanf("%s", input) != 1) {
+                printf("Error: Invalid input!\n");
+                continue;
             }
-        } while (strlen(phoneNumber) != 11);
+
+            if (strlen(input) != 11) {
+                printf("Error: Phone number must be exactly 11 digits!\n");
+                continue;
+            }
+
+            if (strspn(input, "0123456789") != 11) {
+                printf("Error: Phone number must contain only digits!\n");
+                continue;
+            }
+
+            strcpy(phoneNumber, input);
+            break;
+        }
     }
     // Handle Card payment
-    else if (choice == 3) {  // Card option
-        char cardChoice;
-        do {
+    else if (choice == 3) {
+        while (1) {
             printf("Select card type (C for Credit, D for Debit): ");
-            scanf(" %c", &cardChoice);
-            cardChoice = toupper(cardChoice);
+            scanf(" %c", &input[0]);
+            input[0] = toupper(input[0]);
             
-            if (cardChoice == 'C') {
+            if (input[0] == 'C') {
                 strcpy(cardType, "Credit");
-            } else if (cardChoice == 'D') {
-                strcpy(cardType, "Debit");
-            } else {
-                printf("Invalid choice! Please enter C or D.\n");
+                break;
             }
-        } while (cardChoice != 'C' && cardChoice != 'D');
+            else if (input[0] == 'D') {
+                strcpy(cardType, "Debit");
+                break;
+            }
+            
+            printf("Error: Please enter C or D only!\n");
+        }
     }
 
     return choice - 1;
 }
-
 int main() {
     clearScreen();
     addOrder(); 
