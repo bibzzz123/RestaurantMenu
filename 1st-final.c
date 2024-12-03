@@ -62,6 +62,8 @@ char extraOrders[MAX_ORDERS][5];
 char dineOptions[MAX_ORDERS][2];
 char phoneNumber[12] = "";  
 char cardType[10] = "";     
+char customerName[50] = "";
+char customerAddress[100] = "";
 
 int orderCount = 0;
 
@@ -220,6 +222,57 @@ void getOrderDetails(int index, int itemNumber) {
     while (getchar() != '\n'); 
 }
 
+void getCustomerInfo() {
+    // Clear previous input buffer
+    while (getchar() != '\n');
+
+    // Get Customer Name
+    while (1) {
+        printf("Enter your full name: ");
+        if (fgets(customerName, sizeof(customerName), stdin) == NULL) {
+            printf("Error: Invalid input!\n");
+            continue;
+        }
+
+        // Remove newline character if present
+        customerName[strcspn(customerName, "\n")] = 0;
+
+        // Basic validation of name 
+        int spaceCount = 0;
+        for (int i = 0; customerName[i] != '\0'; i++) {
+            if (customerName[i] == ' ') {
+                spaceCount++;
+            }
+        }
+
+        if (strlen(customerName) < 3 || spaceCount < 1) {
+            printf("Error: Please enter your full name (first and last name).\n");
+            continue;
+        }
+
+        break;
+    }
+
+    // Get Customer Address
+    while (1) {
+        printf("Enter your address: ");
+        if (fgets(customerAddress, sizeof(customerAddress), stdin) == NULL) {
+            printf("Error: Invalid input!\n");
+            continue;
+        }
+
+        // Remove newline character if present
+        customerAddress[strcspn(customerAddress, "\n")] = 0;
+
+        if (strlen(customerAddress) < 3) {
+            printf("Error: Please enter a valid address.\n");
+            continue;
+        }
+
+        break;
+    }
+}
+
 void clearAllOrders() {
     orderCount = 0;  
     
@@ -232,6 +285,10 @@ void clearAllOrders() {
     }
     strcpy(phoneNumber, "");
     strcpy(cardType, "");
+    
+    // Clear customer information
+    strcpy(customerName, "");
+    strcpy(customerAddress, "");
 }
 
 
@@ -249,23 +306,17 @@ void addOrder() {
     while (1) {
         displayMenu();
         
-        printf("\nEnter the item number to order (S to show orders, R to remove an order): ");
+        printf("\nEnter the item number to order (S to show orders): ");
         if (scanf("%s", input) != 1) {
             printf("Error: Invalid input!\n");
             while (getchar() != '\n');
             continue;
         }
 
-    
         if (strlen(input) == 1) {
             if (toupper(input[0]) == 'S') {
                 clearScreen();
                 showOrders();
-                return;
-            }
-            else if (toupper(input[0]) == 'R') {
-                clearScreen();
-                removeOrder();
                 return;
             }
         }
@@ -299,13 +350,16 @@ void removeOrder() {
         return;
     }
 
-    showOrders();  
+    int orderNumber, removeQuantity;
+    
+    // Add this to explicitly show the prompt
+    printf("\n----- Remove Order -----\n");
+    printf("Enter the order number to remove (0 to cancel): ");
 
-    int orderNumber;
     while (1) {
-        printf("\nEnter the order number to remove (0 to cancel): ");
         if (scanf("%d", &orderNumber) != 1) {
             printf("Error: Please enter a valid number!\n");
+            printf("Enter the order number to remove (0 to cancel): ");
             while (getchar() != '\n');
             continue;
         }
@@ -318,23 +372,57 @@ void removeOrder() {
 
         if (orderNumber < 1 || orderNumber > orderCount) {
             printf("Error: Please enter a number between 1 and %d!\n", orderCount);
+            printf("Enter the order number to remove (0 to cancel): ");
             continue;
+        }
+
+        // Get quantity to remove
+        printf("Enter quantity to remove (current quantity: %d): ", quantities[orderNumber - 1]);
+        while (1) {
+            if (scanf("%d", &removeQuantity) != 1) {
+                printf("Error: Please enter a valid number!\n");
+                printf("Enter quantity to remove (current quantity: %d): ", quantities[orderNumber - 1]);
+                while (getchar() != '\n');
+                continue;
+            }
+
+            if (removeQuantity <= 0) {
+                printf("Error: Quantity to remove must be greater than 0!\n");
+                printf("Enter quantity to remove (current quantity: %d): ", quantities[orderNumber - 1]);
+                continue;
+            }
+
+            if (removeQuantity > quantities[orderNumber - 1]) {
+                printf("Error: Cannot remove more than current quantity (%d)!\n", 
+                       quantities[orderNumber - 1]);
+                printf("Enter quantity to remove (current quantity: %d): ", quantities[orderNumber - 1]);
+                continue;
+            }
+
+            break;
         }
 
         break;
     }
 
-    // Shift remaining orders
-    for (int i = orderNumber - 1; i < orderCount - 1; i++) {
-        orders[i] = orders[i + 1];
-        quantities[i] = quantities[i + 1];
-        strcpy(types[i], types[i + 1]);
-        strcpy(extraOrders[i], extraOrders[i + 1]);
-        strcpy(dineOptions[i], dineOptions[i + 1]);
-    }
+    // Adjust quantity or remove entire order
+    if (removeQuantity == quantities[orderNumber - 1]) {
+        // Remove entire order by shifting remaining orders
+        for (int i = orderNumber - 1; i < orderCount - 1; i++) {
+            orders[i] = orders[i + 1];
+            quantities[i] = quantities[i + 1];
+            strcpy(types[i], types[i + 1]);
+            strcpy(extraOrders[i], extraOrders[i + 1]);
+            strcpy(dineOptions[i], dineOptions[i + 1]);
+        }
+        orderCount--;
+        printf("\nOrder number %d completely removed!\n", orderNumber);
 
-    orderCount--;
-    printf("\nOrder number %d removed successfully!\n", orderNumber);
+    } else {
+        // Reduce quantity of the specific order
+        quantities[orderNumber - 1] -= removeQuantity;
+        printf("\nRemoved %d quantity from order number %d!\n", removeQuantity, orderNumber);
+    }
     
     printf("\nPress Enter to continue...");
     getchar();
@@ -342,6 +430,7 @@ void removeOrder() {
     clearScreen();
     addOrder();
 }
+
 void showOrders() {
     if (orderCount == 0) {
         printf("\nNothing to show no orders yet!\n");
@@ -402,41 +491,115 @@ void showOrders() {
     printf("-------------------------------------------------------------------------\n");
     printf("Total: Php %.2f\n", total);
     char choice[5];
-    printf("Press C to checkout or Press B to go back: ");
-    scanf(" %s", choice);  
+    
+    while (1) {
+        printf("Press C to checkout, B to go back, or R to remove an order: ");
+        scanf(" %s", choice);  
 
-    if (toupper(choice[0]) == 'C') {  
-        clearScreen();
-        processCheckout();
-        
-        char continueChoice[2];
-        printf("\nDo you want to place another order? (Y/N): ");
-        scanf(" %s", continueChoice);
-        
-        if(toupper(continueChoice[0]) == 'Y') {
-            clearAllOrders(); 
+        if (toupper(choice[0]) == 'C') {  
             clearScreen();
-            addOrder(); 
+            processCheckout();
+            
+            char continueChoice[2];
+            printf("\nDo you want to place another order? (Y/N): ");
+            scanf(" %s", continueChoice);
+            
+            if(toupper(continueChoice[0]) == 'Y') {
+                clearAllOrders(); 
+                clearScreen();
+                addOrder(); 
+            }
+            else {
+                printf("\nThank you for ordering! Please come again!\n");
+                exit(0);  
+            }
+            return;
+        }
+        else if (toupper(choice[0]) == 'B') {
+            clearScreen();
+            addOrder();
+            return;
+        }
+        else if (toupper(choice[0]) == 'R') {
+            // Remove order functionality
+            int orderNumber, removeQuantity;
+            
+            printf("\nEnter the order number to remove (0 to cancel): ");
+            while (1) {
+                if (scanf("%d", &orderNumber) != 1) {
+                    printf("Error: Please enter a valid number!\n");
+                    printf("Enter the order number to remove (0 to cancel): ");
+                    while (getchar() != '\n');
+                    continue;
+                }
+
+                if (orderNumber == 0) {
+                    clearScreen();
+                    showOrders();
+                    return;
+                }
+
+                if (orderNumber < 1 || orderNumber > orderCount) {
+                    printf("Error: Please enter a number between 1 and %d!\n", orderCount);
+                    printf("Enter the order number to remove (0 to cancel): ");
+                    continue;
+                }
+
+                // Get quantity to remove
+                printf("Enter quantity to remove (current quantity: %d): ", quantities[orderNumber - 1]);
+                while (1) {
+                    if (scanf("%d", &removeQuantity) != 1) {
+                        printf("Error: Please enter a valid number!\n");
+                        printf("Enter quantity to remove (current quantity: %d): ", quantities[orderNumber - 1]);
+                        while (getchar() != '\n');
+                        continue;
+                    }
+
+                    if (removeQuantity <= 0) {
+                        printf("Error: Quantity to remove must be greater than 0!\n");
+                        printf("Enter quantity to remove (current quantity: %d): ", quantities[orderNumber - 1]);
+                        continue;
+                    }
+
+                    if (removeQuantity > quantities[orderNumber - 1]) {
+                        printf("Error: Cannot remove more than current quantity (%d)!\n", 
+                               quantities[orderNumber - 1]);
+                        printf("Enter quantity to remove (current quantity: %d): ", quantities[orderNumber - 1]);
+                        continue;
+                    }
+
+                    break;
+                }
+
+                // Adjust quantity or remove entire order
+                if (removeQuantity == quantities[orderNumber - 1]) {
+                    // Remove entire order by shifting remaining orders
+                    for (int i = orderNumber - 1; i < orderCount - 1; i++) {
+                        orders[i] = orders[i + 1];
+                        quantities[i] = quantities[i + 1];
+                        strcpy(types[i], types[i + 1]);
+                        strcpy(extraOrders[i], extraOrders[i + 1]);
+                        strcpy(dineOptions[i], dineOptions[i + 1]);
+                    }
+                    orderCount--;
+                    printf("\nOrder number %d completely removed!\n", orderNumber);
+                } else {
+                    // Reduce quantity of the specific order
+                    quantities[orderNumber - 1] -= removeQuantity;
+                    printf("\nRemoved %d quantity from order number %d!\n", removeQuantity, orderNumber);
+                }
+                
+                printf("\nPress Enter to continue...");
+                getchar();
+                getchar();
+                clearScreen();
+                showOrders();
+                return;
+            }
         }
         else {
-            printf("\nThank you for ordering! Please come again!\n");
-            exit(0);  
+            printf("Invalid choice! Please press C to checkout, B to go back, or R to remove an order.\n");
         }
-    }
-
-
-    else if (toupper(choice[0]) == 'B') {
-        clearScreen();
-        addOrder();
-    }
-
-    else {
-        printf("Invalid choice! Press C to checkout or B to go back.\n");
-        printf("\nPress Enter to continue...");
-        getchar();
-        getchar();
-        clearScreen();
-        showOrders();
     }
 }
 
@@ -470,6 +633,9 @@ void processCheckout() {
             takeoutFees += TAKEOUT_FEE * quantities[i];
         }
     }
+ 
+                
+    getCustomerInfo();
 
     int discountCard = getDiscountCard();
     if (discountCard) {
@@ -478,6 +644,8 @@ void processCheckout() {
 
     int paymentMethod = getPaymentMethod();
     
+   
+    
     printReceipt(subtotal, takeoutFees, discount, subtotal + takeoutFees - discount, paymentMethod);
 }
 
@@ -485,10 +653,16 @@ void printReceipt(double subtotal, double takeoutFees, double discount, double t
     clearScreen();
     printf("\n========================== RECEIPT =============================\n");
     printf("Date: %s\n", __DATE__);
+    
+    // Customer Information
+    printf("Customer Name:               %s\n", customerName);
+    printf("Delivery Address:            %s\n", customerAddress);
+    
     printf("----------------------------------------------------------------\n");
     printf("%-4s %-20s %-8s %-10s %s\n", "Qty", "Item", "Type", "Option", "Amount");
     printf("----------------------------------------------------------------\n");
 
+    
     for (int i = 0; i < orderCount; i++) {
         int itemIndex = orders[i];
         char upperType = toupper(types[i][0]);
@@ -559,7 +733,7 @@ void printReceipt(double subtotal, double takeoutFees, double discount, double t
 
 int getDiscountCard() {
     char input[3];
-    printf("Do you have a discount card? (Y for Yes, N for No): ");
+    printf("\nDo you have a discount card? (Y for Yes, N for No): ");
     scanf("%s", input);
     return (strcmp(input, "Y") == 0 || strcmp(input, "y") == 0);
 }
@@ -621,7 +795,7 @@ int getPaymentMethod() {
             input[0] = toupper(input[0]);
             
             if (input[0] == 'C') {
-                strcpy(cardType, "Credit");
+                strcpy(cardType, "Credit"); 
                 break;
             }
             else if (input[0] == 'D') {
@@ -635,6 +809,7 @@ int getPaymentMethod() {
 
     return choice - 1;
 }
+
 int main() {
     clearScreen();
     addOrder(); 
