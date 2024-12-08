@@ -1,15 +1,20 @@
+// David, Jay Noel R.//
+// Oliveros, Ronald Clarence H.//
+//12-04-2024//
+//Final Project of CC102-T (BSIT-1A)//
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
 
 #define MAX_ITEMS 12
-#define MAX_ORDERS 10
+#define MAX_ORDERS 20
 #define TAKEOUT_FEE 10.00
 #define DISCOUNT_RATE 0.20
 #define MAX_PAYMENT_METHODS 3
 
-// Global arrays for menu items and prices
+// Global arrays for menu items and prices (Same as original code)
 char menuItems[MAX_ITEMS][30] = {
     "Lomi",
     "Chami",
@@ -64,6 +69,7 @@ char phoneNumber[12] = "";
 char cardType[10] = "";     
 char customerName[50] = "";
 char customerAddress[100] = "";
+char paymentReference[50] = ""; // New field for payment reference
 
 int orderCount = 0;
 
@@ -73,7 +79,7 @@ char paymentMethods[MAX_PAYMENT_METHODS][20] = {
     "Card"
 };
 
-// Function prototypes
+// Function prototypes (added new function prototypes)
 void clearScreen();
 void displayMenu();
 void getOrderDetails(int index, int itemNumber);
@@ -81,10 +87,12 @@ void addOrder();
 void removeOrder();
 void showOrders();
 void processCheckout();
-void printReceipt(double subtotal, double takeoutFees, double discount, double total, int paymentMethod);
+void printReceipt(double subtotal, double takeoutFees, double discount, double total, int paymentMethod, double amountPaid, double changeDue);
 int getDiscountCard();
 int getPaymentMethod();
+double getCashPayment(double total);
 void clearAllOrders();
+char* getPaymentReference(int paymentMethod);
 
 void clearScreen() {
     #ifdef _WIN32
@@ -352,7 +360,7 @@ void removeOrder() {
 
     int orderNumber, removeQuantity;
     
-    // Add this to explicitly show the prompt
+    // Remove order prompt
     printf("\n----- Remove Order -----\n");
     printf("Enter the order number to remove (0 to cancel): ");
 
@@ -376,7 +384,7 @@ void removeOrder() {
             continue;
         }
 
-        // Get quantity to remove
+        // quantity to remove
         printf("Enter quantity to remove (current quantity: %d): ", quantities[orderNumber - 1]);
         while (1) {
             if (scanf("%d", &removeQuantity) != 1) {
@@ -606,8 +614,8 @@ void showOrders() {
 void processCheckout() {
     double subtotal = 0.0;
     double takeoutFees = 0.0;
-    double discount = 0.0;
 
+    // Existing subtotal and takeout fees calculation (unchanged)
     for (int i = 0; i < orderCount; i++) {
         int itemIndex = orders[i];
         char upperType = toupper(types[i][0]);
@@ -622,54 +630,72 @@ void processCheckout() {
         
         double lineTotal = itemPrice * quantities[i];
 
-        // Add extra toppings charge if applicable
+        // Add extra toppings or rice charge if applicable
         if (toupper(extraOrders[i][0]) == 'Y') {
-            lineTotal += regularPrices[10] * quantities[i];
+            if (itemIndex >= 5 && itemIndex <= 8) {  // *silog meals
+                lineTotal += regularPrices[9] * quantities[i];  // Extra rice
+            } else if (itemIndex <= 4) {  // Noodle dishes
+                lineTotal += regularPrices[10] * quantities[i];  // Extra toppings
+            }
         }
 
         subtotal += lineTotal;
 
+        // Count takeout fees per item and quantity
         if (strcmp(dineOptions[i], "T") == 0) {
-            takeoutFees += TAKEOUT_FEE * quantities[i];
+            takeoutFees += (TAKEOUT_FEE * quantities[i]);
         }
     }
  
-                
     getCustomerInfo();
 
     int discountCard = getDiscountCard();
-    if (discountCard) {
-        discount = subtotal * DISCOUNT_RATE;
-    }
+    
+    // NEW MODIFICATION: Calculate discount on subtotal + takeout fees
+    double discountBase = subtotal + takeoutFees;
+    double discount = discountCard ? (discountBase * DISCOUNT_RATE) : 0.0;
 
     int paymentMethod = getPaymentMethod();
     
-   
+    // Compute total amount
+    double total = discountBase - discount;
     
-    printReceipt(subtotal, takeoutFees, discount, subtotal + takeoutFees - discount, paymentMethod);
+    // Get payment reference for E-money and Card
+    strcpy(paymentReference, getPaymentReference(paymentMethod));
+    
+    // Handle cash payment with change computation
+    double amountPaid = 0.0;
+    double changeDue = 0.0;
+    
+    if (paymentMethod == 0) { // Cash payment
+        amountPaid = getCashPayment(total);
+        changeDue = amountPaid - total;
+    }
+    
+    printReceipt(subtotal, takeoutFees, discount, total, paymentMethod, amountPaid, changeDue);
 }
 
-void printReceipt(double subtotal, double takeoutFees, double discount, double total, int paymentMethod) {
+void printReceipt(double subtotal, double takeoutFees, double discount, double total, int paymentMethod, double amountPaid, double changeDue) {
     clearScreen();
     printf("\n========================== RECEIPT =============================\n");
     printf("Date: %s\n", __DATE__);
     
     // Customer Information
     printf("Customer Name:               %s\n", customerName);
-    printf("Delivery Address:            %s\n", customerAddress);
+    printf("Address:                     %s\n", customerAddress);
     
     printf("----------------------------------------------------------------\n");
     printf("%-4s %-20s %-8s %-10s %s\n", "Qty", "Item", "Type", "Option", "Amount");
     printf("----------------------------------------------------------------\n");
 
-    
+    // Existing order details printing (unchanged)
     for (int i = 0; i < orderCount; i++) {
         int itemIndex = orders[i];
         char upperType = toupper(types[i][0]);
         double itemPrice;
         
         // Special handling for softdrinks
-        if (itemIndex == 11) { // Softdrink index
+        if (itemIndex == 11) { 
             itemPrice = (toupper(extraOrders[i][0]) == 'L') ? specialPrices[itemIndex] : regularPrices[itemIndex];
         } else {
             itemPrice = (upperType == 'S') ? specialPrices[itemIndex] : regularPrices[itemIndex];
@@ -704,7 +730,7 @@ void printReceipt(double subtotal, double takeoutFees, double discount, double t
         }
     }
 
-    printf("=============================================\n");
+    printf("================================================================\n");
     printf("Subtotal:                      Php %.2f\n", subtotal);
     
     if (takeoutFees > 0) {
@@ -715,14 +741,24 @@ void printReceipt(double subtotal, double takeoutFees, double discount, double t
         printf("Discount (20%%):                Php %.2f\n", discount);
     }
     
-    printf("---------------------------------------------\n");
+    printf("-----------------------------------------------------------------\n");
     printf("Total Amount:                  Php %.2f\n", total);
     printf("Payment Method:                %s\n", paymentMethods[paymentMethod]);
     
-    if (paymentMethod == 1) {
-        printf("Gcash/Maya Number:               %s\n", phoneNumber);
-    } else if (paymentMethod == 2) {
-        printf("Card Type:                    %s\n", cardType);
+    // Add payment method specific details
+    if (paymentMethod == 1) { // E-money
+        printf("Gcash/Maya Number:             %s\n", phoneNumber);
+        printf("Payment Reference:             %s\n", paymentReference);
+    } 
+    else if (paymentMethod == 2) { // Card
+        printf("Card Type:                     %s\n", cardType);
+        printf("Payment Reference:             %s\n", paymentReference);
+    }
+    else if (paymentMethod == 0) { // Cash
+        if (amountPaid > 0) {
+            printf("Amount Paid:                   Php %.2f\n", amountPaid);
+            printf("Change Due:                    Php %.2f\n", changeDue);
+        }
     }
     
     printf("=============================================\n");
@@ -730,6 +766,7 @@ void printReceipt(double subtotal, double takeoutFees, double discount, double t
     printf("        Please come again. God Bless!\n");
     printf("=============================================\n");
 }
+
 
 int getDiscountCard() {
     char input[3];
@@ -808,6 +845,60 @@ int getPaymentMethod() {
     }
 
     return choice - 1;
+}
+double getCashPayment(double total) {
+    double amountPaid;
+    
+    clearScreen();
+    
+    while (1) {
+        
+        printf("Total amount due: Php %.2f\n", total);
+        printf("Enter amount paid: Php ");
+        
+        if (scanf("%lf", &amountPaid) != 1) {
+            printf("Error: Please enter a valid number!\n");
+            while (getchar() != '\n');
+            continue;
+        }
+
+        if (amountPaid < total) {
+            printf("Error: Insufficient payment. Amount must be at least Php %.2f\n", total);
+            continue;
+        }
+
+        return amountPaid;
+    }
+}
+
+char* getPaymentReference(int paymentMethod) {
+    static char reference[50];
+    
+    // Only prompt for reference for E-money and Card payments
+    if (paymentMethod == 1 || paymentMethod == 2) { // E-money or Card
+        //printf("Enter payment reference number: ");
+        if (fgets(reference, sizeof(reference), stdin) == NULL) {
+            reference[0] = '\0';
+            return reference;
+        }
+        
+        // Remove newline character
+        reference[strcspn(reference, "\n")] = 0;
+        
+        // If input is empty or too short, keep prompting
+        while (strlen(reference) < 3) {
+            printf("Enter payment reference number: ");
+            if (fgets(reference, sizeof(reference), stdin) == NULL) {
+                reference[0] = '\0';
+                return reference;
+            }
+            reference[strcspn(reference, "\n")] = 0;
+        }
+        
+        return reference;
+    }
+    
+    return ""; // Return empty string for cash payments
 }
 
 int main() {
